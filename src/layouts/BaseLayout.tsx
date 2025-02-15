@@ -3,6 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, X, ChevronDown, Globe, Settings, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -481,36 +482,17 @@ export default function BaseLayout({
               transition={{ delay: 0.5 }}
               className="mt-auto pt-4 border-t border-white/10"
             >
-              <h3 className="text-sm text-muted-foreground inter-medium px-2.5 mb-2">Outgoing Data</h3>
-              {!selectedTopicId ? (
-                <div className="px-2.5 py-2 text-sm text-muted-foreground">
-                  Select a topic to send data
-                </div>
-              ) : (
-                <div className="px-2.5 space-y-2">
-                  {sendError && (
-                    <div className="text-sm text-red-500">
-                      {sendError}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Input
-                      value={outgoingMessage}
-                      onChange={(e) => setOutgoingMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                      placeholder="Type your message..."
-                      className="flex-1 bg-[hsl(var(--content-background))] border-white/10"
-                      disabled={isSending}
-                    />
+              <div className="flex items-center justify-between px-2.5 mb-2">
+                <h3 className="text-sm text-muted-foreground inter-medium">Outgoing Data</h3>
+                {selectedTopicId && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">⌘ + ↵</span>
                     <Button
                       onClick={handleSendMessage}
                       disabled={!outgoingMessage.trim() || isSending}
-                      className="bg-[hsl(var(--content-background))] hover:bg-white/5"
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 hover:bg-white/5"
                     >
                       {isSending ? (
                         <motion.div
@@ -524,6 +506,41 @@ export default function BaseLayout({
                       )}
                     </Button>
                   </div>
+                )}
+              </div>
+              {!selectedTopicId ? (
+                <div className="px-2.5 py-2 text-sm text-muted-foreground">
+                  Select a topic to send data
+                </div>
+              ) : (
+                <div className="px-2.5 space-y-2">
+                  {sendError && (
+                    <div className="text-sm text-red-500">
+                      {sendError}
+                    </div>
+                  )}
+                  <Textarea
+                    value={outgoingMessage}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                      // Try to format JSON if the input is valid JSON
+                      try {
+                        const jsonData = JSON.parse(e.target.value);
+                        setOutgoingMessage(JSON.stringify(jsonData, null, 2));
+                      } catch {
+                        // If not valid JSON, just set the raw value
+                        setOutgoingMessage(e.target.value);
+                      }
+                    }}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                      if (e.key === 'Enter' && e.metaKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Enter JSON message..."
+                    className="flex-1 min-h-[100px] font-mono text-sm bg-[hsl(var(--content-background))] border-white/10 resize-y"
+                    disabled={isSending}
+                  />
                 </div>
               )}
             </motion.div>
