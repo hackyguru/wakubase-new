@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, X, ChevronDown, Globe, Settings } from "lucide-react";
+import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, X, ChevronDown, Globe, Settings, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -40,6 +40,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useContentTopics } from '@/hooks/useContentTopics';
+import { useContentData } from '@/hooks/useContentData';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from "@/lib/utils";
+import { getNodeUrl } from '@/store/settings';
+import axios from 'axios';
 
 const sidebarVariants = {
   open: {
@@ -103,6 +108,9 @@ export default function BaseLayout({
   const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
   const [newTopic, setNewTopic] = useState('');
   const [showCopiedCheck, setShowCopiedCheck] = useState(false);
+  const [outgoingMessage, setOutgoingMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const {
     nodeType,
@@ -118,6 +126,8 @@ export default function BaseLayout({
   const [isDark, setIsDark] = useState(false);
   const isHealthy = useNodeHealth();
   const { topics, selectedTopicId, setSelectedTopicId, addTopic, deleteTopic } = useContentTopics();
+  const selectedTopic = topics.find(t => t.id === selectedTopicId);
+  const { data: contentData, error: contentError, clearData, deleteMessage } = useContentData(selectedTopicId, selectedTopic?.topic);
 
   useEffect(() => {
     // Initialize theme state from stored settings
@@ -153,6 +163,37 @@ export default function BaseLayout({
       await navigator.clipboard.writeText(selectedTopic.topic);
       setShowCopiedCheck(true);
       setTimeout(() => setShowCopiedCheck(false), 2000);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!outgoingMessage.trim() || !selectedTopicId) return;
+    
+    const selectedTopic = topics.find(t => t.id === selectedTopicId);
+    if (!selectedTopic) return;
+
+    setIsSending(true);
+    setSendError(null);
+    
+    try {
+      const nodeUrl = getNodeUrl();
+      const encodedMessage = btoa(outgoingMessage.trim());
+      
+      await axios.post(
+        `${nodeUrl}/relay/v1/auto/messages`,
+        {
+          payload: encodedMessage,
+          contentTopic: selectedTopic.topic,
+          timestamp: Date.now()
+        }
+      );
+
+      setOutgoingMessage('');
+    } catch (error: any) {
+      console.error('Failed to send message:', error);
+      setSendError('Failed to send message');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -374,45 +415,117 @@ export default function BaseLayout({
               transition={{ delay: 0.4 }}
               className="flex-1 overflow-y-auto"
             >
-              <h3 className="text-sm text-muted-foreground inter-medium px-2.5 mb-2">Incoming Data</h3>
-              <div className="space-y-1.5">
-                {/* First Request item with solid background */}
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#f6f6f4] dark:bg-[#1e1e1c] cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">Anonymous data</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.707</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Rest of the requests with gradient background */}
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/50 to-[#f6f6f4]/20 dark:from-[#1e1e1c]/50 dark:to-[#1e1e1c]/20 cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">Anonymous data</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.621</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                
-
+              <div className="flex items-center justify-between px-2.5 mb-2">
+                <h3 className="text-sm text-muted-foreground inter-medium">Incoming Data</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 hover:bg-white/5"
+                  onClick={() => clearData()}
+                  disabled={!selectedTopicId || contentData.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                </Button>
               </div>
+              {contentError && (
+                <div className="px-2.5 py-2 text-sm text-red-500">
+                  {contentError}
+                </div>
+              )}
+              {(!selectedTopicId || contentData.length === 0) && !contentError && (
+                <div className="px-2.5 py-2 text-sm text-muted-foreground">
+                  No data available
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {contentData.map((item, index) => (
+                  <div 
+                    key={item.timestamp}
+                    className={cn(
+                      "group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors duration-200",
+                      index === 0 
+                        ? "bg-[#f6f6f4] dark:bg-[#1e1e1c]" 
+                        : "bg-gradient-to-b from-[#f6f6f4]/50 to-[#f6f6f4]/20 dark:from-[#1e1e1c]/50 dark:to-[#1e1e1c]/20"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm inter-regular">
+                        {atob(item.payload)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground inter-regular">
+                        {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                      </span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteMessage(item.timestamp);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Add the outgoing data section */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mt-auto pt-4 border-t border-white/10"
+            >
+              <h3 className="text-sm text-muted-foreground inter-medium px-2.5 mb-2">Outgoing Data</h3>
+              {!selectedTopicId ? (
+                <div className="px-2.5 py-2 text-sm text-muted-foreground">
+                  Select a topic to send data
+                </div>
+              ) : (
+                <div className="px-2.5 space-y-2">
+                  {sendError && (
+                    <div className="text-sm text-red-500">
+                      {sendError}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      value={outgoingMessage}
+                      onChange={(e) => setOutgoingMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Type your message..."
+                      className="flex-1 bg-[hsl(var(--content-background))] border-white/10"
+                      disabled={isSending}
+                    />
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!outgoingMessage.trim() || isSending}
+                      className="bg-[hsl(var(--content-background))] hover:bg-white/5"
+                    >
+                      {isSending ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Send className="h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         </AnimatePresence>
