@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, Trash2, ChevronDown, Globe, Settings } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +14,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,6 +27,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { HealthIndicator } from "@/components/ui/health-indicator";
+import { useNodeHealth } from "@/hooks/useNodeHealth";
+import { useSettings } from '@/hooks/useSettings';
 
 const sidebarVariants = {
   open: {
@@ -78,15 +88,28 @@ export default function BaseLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [isNewWebhookOpen, setIsNewWebhookOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [autoSelectNew, setAutoSelectNew] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const {
+    nodeType,
+    nodeUrl,
+    networkType,
+    customNetworkUrl,
+    autoSelectNew,
+    theme: storedTheme,
+    updateSettings,
+    defaultSettings,
+  } = useSettings();
+
+  const [isDark, setIsDark] = useState(false);
+  const isHealthy = useNodeHealth();
+
   useEffect(() => {
-    // Initialize theme state
-    setIsDark(document.documentElement.classList.contains('dark'));
-  }, []);
+    // Initialize theme state from stored settings
+    setIsDark(storedTheme === 'dark');
+    document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+  }, [storedTheme]);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(`https://${webhookUrl}`);
@@ -95,14 +118,14 @@ export default function BaseLayout({
   };
 
   const handleToggleTheme = () => {
-    const root = document.documentElement;
-    const isDarkMode = root.classList.contains('dark');
-    root.classList.toggle('dark');
-    setIsDark(!isDarkMode);
+    const newTheme = isDark ? 'light' : 'dark';
+    updateSettings({ theme: newTheme });
+    setIsDark(!isDark);
+    document.documentElement.classList.toggle('dark');
   };
 
   const handleAutoSelectToggle = () => {
-    setAutoSelectNew(!autoSelectNew);
+    updateSettings({ autoSelectNew: !autoSelectNew });
   };
 
   return (
@@ -188,7 +211,7 @@ export default function BaseLayout({
                     <span className="text-sm inter-regular">Auto-select new requests</span>
                     <Switch
                       checked={autoSelectNew}
-                      onCheckedChange={setAutoSelectNew}
+                      onCheckedChange={(checked) => updateSettings({ autoSelectNew: checked })}
                     />
                   </div>
                   <DropdownMenuSeparator className="bg-white/10" />
@@ -465,8 +488,11 @@ export default function BaseLayout({
 
         {/* Right border and icons */}
         <div className="flex h-[calc(100vh-52px)] border-l border-white/10">
-          <div className="w-10 bg-[hsl(var(--sidebar-background))] flex flex-col justify-end pb-4">
-            <div className="flex flex-col items-center gap-2">
+          <div className="w-10 bg-[hsl(var(--sidebar-background))] flex flex-col">
+            <div className="flex justify-center pt-4">
+              <HealthIndicator isHealthy={isHealthy.isHealthy} isChecking={isHealthy.isChecking} />
+            </div>
+            <div className="flex flex-col items-center gap-2 mt-auto pb-4">
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -514,28 +540,103 @@ export default function BaseLayout({
               Configure your webhook settings and preferences.
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm inter-regular">Auto-select new requests</span>
-              <Switch
-                checked={autoSelectNew}
-                onCheckedChange={setAutoSelectNew}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm inter-regular">Theme</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 hover:bg-white/5"
-                onClick={handleToggleTheme}
+          <div className="mt-6 space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium inter-medium">Node Configuration</h3>
+              <Tabs 
+                defaultValue={nodeType} 
+                onValueChange={(value) => updateSettings({ nodeType: value as 'full' | 'light' })} 
+                className="w-full"
               >
-                {isDark ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </Button>
+                <TabsList className="w-full bg-[hsl(var(--content-background))] border-white/10">
+                  <TabsTrigger value="full" className="w-full">Full Node</TabsTrigger>
+                  <TabsTrigger value="light" className="w-full">Light Node</TabsTrigger>
+                </TabsList>
+                <TabsContent value="full" className="mt-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground inter-regular">Node URL</label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={nodeUrl}
+                          onChange={(e) => {
+                            const newUrl = e.target.value;
+                            updateSettings({ nodeUrl: newUrl });
+                          }}
+                          className="flex-1 bg-[hsl(var(--content-background))] border-white/10"
+                          placeholder="Enter node URL"
+                        />
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            // Reset just the node URL to default
+                            updateSettings({ nodeUrl: defaultSettings.nodeUrl });
+                          }}
+                          className="whitespace-nowrap"
+                        >
+                          Reset URL
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Current node URL: {nodeUrl}
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="light" className="mt-4">
+                  <div className="space-y-4">
+                    <Select
+                      value={networkType}
+                      onValueChange={(value) => updateSettings({ networkType: value as 'bootstrap' | 'custom' })}
+                    >
+                      <SelectTrigger className="bg-[hsl(var(--content-background))] border-white/10">
+                        <SelectValue placeholder="Select network type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[hsl(var(--sidebar-background))] border-white/10">
+                        <SelectItem value="bootstrap">Bootstrap Network</SelectItem>
+                        <SelectItem value="custom">Custom Network</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {networkType === "custom" && (
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground inter-regular">Custom Network URL</label>
+                        <Input
+                          value={customNetworkUrl}
+                          onChange={(e) => updateSettings({ customNetworkUrl: e.target.value })}
+                          className="bg-[hsl(var(--content-background))] border-white/10"
+                          placeholder="Enter custom network URL"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium inter-medium">General Settings</h3>
+              <div className="flex items-center justify-between">
+                <span className="text-sm inter-regular">Auto-select new requests</span>
+                <Switch
+                  checked={autoSelectNew}
+                  onCheckedChange={(checked) => updateSettings({ autoSelectNew: checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm inter-regular">Theme</span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 hover:bg-white/5"
+                  onClick={handleToggleTheme}
+                >
+                  {isDark ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </SheetContent>

@@ -140,13 +140,11 @@
 @layer base {
   @font-face {
     font-family: "Geist";
-
     src: url("../assets/fonts/geist/geist.ttf") format("truetype");
   }
   @font-face {
     font-family: "Geist Mono";
     font-display: swap;
-
     src: url("../assets/fonts/geist-mono/geist-mono.ttf") format("truetype");
   }
 
@@ -154,28 +152,24 @@
     font-family: "Tomorrow";
     font-weight: 400;
     font-style: normal;
-
     src: url("../assets/fonts/tomorrow/tomorrow-regular.ttf") format("truetype");
   }
   @font-face {
     font-family: "Tomorrow";
     font-weight: 400;
     font-style: italic;
-
     src: url("../assets/fonts/tomorrow/tomorrow-italic.ttf") format("truetype");
   }
   @font-face {
     font-family: "Tomorrow";
     font-weight: 700;
     font-style: normal;
-
     src: url("../assets/fonts/tomorrow/tomorrow-bold.ttf") format("truetype");
   }
   @font-face {
     font-family: "Tomorrow";
     font-weight: 700;
     font-style: italic;
-
     src: url("../assets/fonts/tomorrow/tomorrow-bold-italic.ttf") format("truetype");
   }
 }
@@ -184,32 +178,32 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-    --sidebar-background: 0 0% 93.3%;  /* #eeeeee */
-    --content-background: 180 12% 97.6%;  /* #f6f9f8 */
+    --sidebar-background: 0 0% 93.3%;
+    --content-background: 180 12% 97.6%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 0 0% 100%;
+    --popover: 0 0% 93.3%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 0 0% 100%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 0 0% 100%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
@@ -218,25 +212,25 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    --sidebar-background: 0 0% 16.5%;  /* #2a2a2a */
-    --content-background: 0 0% 11.8%;  /* #1e1e1e */
+    --sidebar-background: 0 0% 16.5%;
+    --content-background: 0 0% 11.8%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 16.5%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 16.5%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: 0 0% 100%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 0 0% 100%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 0 0% 100%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
