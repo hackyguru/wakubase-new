@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, Trash2, ChevronDown, Globe, Settings } from "lucide-react";
+import { Copy, Menu, Plus, Check, MoreVertical, Sun, Moon, X, ChevronDown, Globe, Settings } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -30,6 +30,16 @@ import {
 import { HealthIndicator } from "@/components/ui/health-indicator";
 import { useNodeHealth } from "@/hooks/useNodeHealth";
 import { useSettings } from '@/hooks/useSettings';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useContentTopics } from '@/hooks/useContentTopics';
 
 const sidebarVariants = {
   open: {
@@ -84,12 +94,15 @@ export default function BaseLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const webhookUrl = "slimy-cartoon-41.webhook.cool";
+  const webhookUrl = "/appname/1/category/proto";
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [isNewWebhookOpen, setIsNewWebhookOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [newTopicDialogOpen, setNewTopicDialogOpen] = useState(false);
+  const [newTopic, setNewTopic] = useState('');
+  const [showCopiedCheck, setShowCopiedCheck] = useState(false);
 
   const {
     nodeType,
@@ -104,6 +117,7 @@ export default function BaseLayout({
 
   const [isDark, setIsDark] = useState(false);
   const isHealthy = useNodeHealth();
+  const { topics, selectedTopicId, setSelectedTopicId, addTopic, deleteTopic } = useContentTopics();
 
   useEffect(() => {
     // Initialize theme state from stored settings
@@ -111,21 +125,35 @@ export default function BaseLayout({
     document.documentElement.classList.toggle('dark', storedTheme === 'dark');
   }, [storedTheme]);
 
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(`https://${webhookUrl}`);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleValueChange = (value: string) => {
+    if (value === 'new') {
+      setNewTopicDialogOpen(true);
+    } else {
+      setSelectedTopicId(value);
+    }
   };
 
-  const handleToggleTheme = () => {
-    const newTheme = isDark ? 'light' : 'dark';
-    updateSettings({ theme: newTheme });
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
+  const handleDeleteTopic = (e: React.MouseEvent | React.KeyboardEvent, id: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    deleteTopic(id);
   };
 
-  const handleAutoSelectToggle = () => {
-    updateSettings({ autoSelectNew: !autoSelectNew });
+  const handleCreateTopic = () => {
+    if (newTopic.trim()) {
+      addTopic(newTopic.trim());
+      setNewTopic('');
+      setNewTopicDialogOpen(false);
+    }
+  };
+
+  const handleCopyTopic = async () => {
+    const selectedTopic = topics.find(topic => topic.id === selectedTopicId);
+    if (selectedTopic) {
+      await navigator.clipboard.writeText(selectedTopic.topic);
+      setShowCopiedCheck(true);
+      setTimeout(() => setShowCopiedCheck(false), 2000);
+    }
   };
 
   return (
@@ -219,36 +247,26 @@ export default function BaseLayout({
                     Share this webhook
                   </DropdownMenuLabel>
                   <DropdownMenuItem 
-                    onClick={handleToggleTheme}
+                    onClick={() => {
+                      handleCopyTopic();
+                    }}
                     onSelect={(e) => e.preventDefault()}
                     className="flex items-center justify-between hover:bg-white/5 rounded-lg"
                   >
                     <div className="flex items-center gap-2">
-                      {isDark ? (
-                        <Sun className="h-4 w-4" />
+                      {showCopiedCheck ? (
+                        <Check className="h-4 w-4 text-green-500" />
                       ) : (
-                        <Moon className="h-4 w-4" />
+                        <Copy className="h-4 w-4" />
                       )}
-                      <span className="inter-regular">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
                     </div>
-                    <motion.div
-                      initial={false}
-                      animate={{ rotate: isDark ? 0 : 180 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                      {isDark ? (
-                        <Sun className="h-4 w-4 " />
-                      ) : (
-                        <Moon className="h-4 w-4" />
-                      )}
-                    </motion.div>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onSelect={(e) => e.preventDefault()}
                     className="text-red-400 hover:bg-white/5 rounded-lg"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <X className="h-4 w-4 mr-2" />
                     <span className="inter-regular">Delete this webhook</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -265,19 +283,19 @@ export default function BaseLayout({
                 <div 
                   onClick={(e) => {
                     e.preventDefault();
-                    handleCopyUrl();
+                    handleCopyTopic();
                   }}
                   className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-white/5 flex items-center justify-center cursor-pointer rounded-md z-10"
                 >
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={isCopied ? "check" : "copy"}
+                      key={showCopiedCheck ? "check" : "copy"}
                       initial={{ opacity: 0, scale: 0.5 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.5 }}
                       transition={{ duration: 0.15 }}
                     >
-                      {isCopied ? (
+                      {showCopiedCheck ? (
                         <Check className="h-4 w-4 text-green-500" />
                       ) : (
                         <Copy className="h-4 w-4" />
@@ -285,10 +303,12 @@ export default function BaseLayout({
                     </motion.div>
                   </AnimatePresence>
                 </div>
-                <Select defaultValue={webhookUrl}>
+                <Select value={selectedTopicId || ''} onValueChange={handleValueChange}>
                   <SelectTrigger className="bg-[hsl(var(--content-background))] border-white/10 pr-[4.5rem] inter-regular rounded-lg px-3 py-2.5">
                     <div className="flex items-center w-full">
-                      <SelectValue placeholder="Select webhook URL" />
+                      <SelectValue placeholder="Select content topic">
+                        {topics.find(t => t.id === selectedTopicId)?.topic || 'Select content topic'}
+                      </SelectValue>
                     </div>
                     <div className="absolute right-2 flex items-center">
                       <div className="h-7 w-7 flex items-center justify-center">
@@ -297,16 +317,48 @@ export default function BaseLayout({
                     </div>
                   </SelectTrigger>
                   <SelectContent className="inter-regular bg-[hsl(var(--content-background))] border-white/10 rounded-lg p-1.5">
-                    <SelectItem value={webhookUrl} className="flex items-center hover:bg-white/5 rounded-lg px-3 py-2 [&>span:first-child]:hidden">
-                      <div className="flex items-center gap-2 w-full">
-                        <Globe className="h-4 w-4" />
-                        <span>{webhookUrl}</span>
+                    {topics.map((topic) => (
+                      <div key={topic.id} className="relative group">
+                        <SelectItem 
+                          value={topic.id}
+                          className="flex items-center hover:bg-white/5 rounded-lg px-3 py-2 [&>span:first-child]:hidden pr-8"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4" />
+                            <span>{topic.topic}</span>
+                          </div>
+                        </SelectItem>
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-white/5 rounded-md flex items-center justify-center cursor-pointer transition-opacity"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deleteTopic(topic.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteTopic(topic.id);
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
+                          <X className="h-3 w-3 text-red-500" />
+                        </button>
                       </div>
-                    </SelectItem>
-                    <SelectItem value="new" className="text-muted-foreground flex items-center hover:bg-white/5 rounded-lg px-3 py-2 [&>span:first-child]:hidden" onSelect={() => setIsNewWebhookOpen(true)}>
+                    ))}
+                    <SelectItem 
+                      value="new"
+                      className="text-muted-foreground flex items-center hover:bg-white/5 rounded-lg px-3 py-2 [&>span:first-child]:hidden"
+                    >
                       <div className="flex items-center gap-2 w-full">
                         <Plus className="h-4 w-4" />
-                        <span>New Webhook</span>
+                        <span>New content topic</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -327,7 +379,7 @@ export default function BaseLayout({
                 {/* First Request item with solid background */}
                 <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#f6f6f4] dark:bg-[#1e1e1c] cursor-pointer transition-colors duration-200">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
+                    <span className="text-sm inter-regular">Anonymous data</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.707</span>
@@ -336,15 +388,15 @@ export default function BaseLayout({
                       size="icon" 
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
                 {/* Rest of the requests with gradient background */}
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/80 to-[#f6f6f4]/40 dark:from-[#1e1e1c]/80 dark:to-[#1e1e1c]/40 cursor-pointer transition-colors duration-200">
+                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/50 to-[#f6f6f4]/20 dark:from-[#1e1e1c]/50 dark:to-[#1e1e1c]/20 cursor-pointer transition-colors duration-200">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
+                    <span className="text-sm inter-regular">Anonymous data</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.621</span>
@@ -353,74 +405,13 @@ export default function BaseLayout({
                       size="icon" 
                       className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/60 to-[#f6f6f4]/20 dark:from-[#1e1e1c]/60 dark:to-[#1e1e1c]/20 cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.429</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                
 
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/40 to-[#f6f6f4]/10 dark:from-[#1e1e1c]/40 dark:to-[#1e1e1c]/10 cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:24.049</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/20 to-[#f6f6f4]/5 dark:from-[#1e1e1c]/20 dark:to-[#1e1e1c]/5 cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:23.424</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="group flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-b from-[#f6f6f4]/10 to-[#f6f6f4]/0 dark:from-[#1e1e1c]/10 dark:to-[#1e1e1c]/0 cursor-pointer transition-colors duration-200">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm inter-regular">POST</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground inter-regular">3 Jan 09:55:22.123</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-white/5"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -508,7 +499,12 @@ export default function BaseLayout({
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 hover:bg-white/5 relative"
-                onClick={handleToggleTheme}
+                onClick={() => {
+                  const newTheme = isDark ? 'light' : 'dark';
+                  updateSettings({ theme: newTheme });
+                  setIsDark(!isDark);
+                  document.documentElement.classList.toggle('dark');
+                }}
               >
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -628,7 +624,12 @@ export default function BaseLayout({
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8 hover:bg-white/5"
-                  onClick={handleToggleTheme}
+                  onClick={() => {
+                    const newTheme = isDark ? 'light' : 'dark';
+                    updateSettings({ theme: newTheme });
+                    setIsDark(!isDark);
+                    document.documentElement.classList.toggle('dark');
+                  }}
                 >
                   {isDark ? (
                     <Sun className="h-4 w-4" />
@@ -675,6 +676,55 @@ export default function BaseLayout({
           </>
         )}
       </AnimatePresence>
+
+      {/* New Topic Dialog */}
+      <Dialog open={newTopicDialogOpen} onOpenChange={setNewTopicDialogOpen}>
+        <DialogContent className="bg-[hsl(var(--sidebar-background))] border-white/10">
+          <DialogHeader>
+            <DialogTitle className="text-xl inter-semibold">New Content Topic</DialogTitle>
+            <DialogDescription className="text-muted-foreground inter-regular">
+              Create a new content topic to monitor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground inter-regular">
+                Topic Name
+              </label>
+              <Input
+                value={newTopic}
+                onChange={(e) => setNewTopic(e.target.value)}
+                placeholder="Enter topic name"
+                className="bg-[hsl(var(--content-background))] border-white/10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newTopic.trim()) {
+                    handleCreateTopic();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setNewTopicDialogOpen(false);
+                setNewTopic('');
+              }}
+              className="inter-medium"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTopic}
+              className="inter-medium"
+              disabled={!newTopic.trim()}
+            >
+              Create Topic
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
